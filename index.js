@@ -9,7 +9,7 @@ const app = express()
 
 const token=process.env.FB_VERIFY_TOKEN
 const access=process.env.FB_ACCESS_TOKEN
-const SERVER_URL=process.env.SERVER_URL
+
 
 
 app.set('port', (process.env.PORT|| 5000))
@@ -48,7 +48,10 @@ app.post('/webhook/', function (req, res) {
       // Iterate over each messaging event
       entry.messaging.forEach(function(event) {
         if (event.message) {
+
+
            receivedMessage(event);
+
 
 				}else {
           console.log("Webhook received unknown event: ", event);
@@ -64,6 +67,29 @@ app.post('/webhook/', function (req, res) {
     res.sendStatus(200);
   }
 });
+
+// First Time User
+getStarted()
+function getStarted() {
+
+	request.post({
+		method: 'POST',
+		uri: 'https://graph.facebook.com/v2.8/me/thread_settings?access_token=' + token,
+		qs: {
+			setting_type: 'call_to_actions',
+			thread_state: 'new_thread',
+			call_to_actions: [{
+                payload: 'GET_STARTED'
+            }]
+        },
+		json: true
+	}, (err, res, body) => {
+		console.log(err)
+	});
+}
+
+
+
 
 
 function receivedMessage(event) {
@@ -86,6 +112,9 @@ function receivedMessage(event) {
     // If we receive a text message, check to see if it matches a keyword
     // and send back the example. Otherwise, just echo the text we received.
     switch (messageText) {
+      case 'explore':
+        sendexploreMessage(senderID);
+        break;
       case 'generic':
         sendGenericMessage(senderID);
         break;
@@ -95,11 +124,33 @@ function receivedMessage(event) {
       case 'typing on':
         sendTypingOn(senderID);
         break;
+      case 'image':
+        sendImageMessage(senderID)
+        break;
+      case 'gif':
+        sendGifMessage(senderID);
+        break;
+
+      case 'audio':
+        sendAudioMessage(senderID);
+        break;
+
+      case 'video':
+        sendVideoMessage(senderID);
+        break;
+
+      case 'file':
+        sendFileMessage(senderID);
+        break;
+
+      case 'read receipt':
+        sendReadReceipt(senderID);
+        break;
 
       case 'typing off':
         sendTypingOff(senderID);
         break;
-        
+
       case 'quick reply':
         sendQuickReply(senderID);
         break;
@@ -113,72 +164,35 @@ function receivedMessage(event) {
   }
 }
 
-function getStarted() {
-	request.post({
-		method: 'POST',
-		uri: 'https://graph.facebook.com/v2.8/me/thread_settings?access_token=' + token,
-		qs: {
-			setting_type: 'call_to_actions',
-			thread_state: 'new_thread',
-			call_to_actions: [{
-                payload: 'GET_STARTED'
-            }]
-        },
-		json: true
-	}, (err, res, body) => {
-		console.log(err)
-	});
-}
+function sendexploreMessage(recipientId) {
+	var messageData={
+    recipient:{
+      id:recipientId
+    },
+    message:{
+      text:"Try to type\r\naudio\r\nvideo\r\nimage\r\ngif\r\nquick reply\r\ntyping on\r\ntyping off\r\nread receipt\r\nfile\r\ngeneric\r\nbutton\r\n"
+    }
+  }
 
-// Send Welcome Message
-function sendWelcomeMessage(sender, token) {
-	let text =  "Welcome to  imkannu21"
-	let message = {
-		"attachment": {
-			"type":"template",
-			"payload":{
-				"template_type":"button",
-				"text":text,
-				"buttons":[{
-					"type":"postback",
-					"title":"LET'S BEGIN",
-					"payload":"category"
-				}]
-			}
-		}
-	}
-	sendTextMessage(senderID,messageText)
+	callSendAPI(messageData);
 }
 
 
-function greetUserText(userId) {
-	//first read user firstname
-	request({
-		uri: 'https://graph.facebook.com/v2.7/' + userId,
-		qs: {
-			access_token: access
-		}
+function sendTextMessage(recipientId, messageText) {
+  var messageData = {
+    recipient: {
+      id: recipientId
+    },
+    message: {
+      text: "Hello Welcome to this Bot,Please type [explore] to know more",
+      metadata:"DEVELOPER_DEFINED_METADATA"
+    }
+  };
 
-	}, function (error, response, body) {
-		if (!error && response.statusCode == 200) {
-
-			var user = JSON.parse(body);
-
-			if (user.first_name) {
-				console.log("FB user: %s %s, %s",
-					user.first_name, user.last_name, user.gender);
-
-				sendTextMessage(userId, "Welcome " + user.first_name + '!');
-			} else {
-				console.log("Cannot get data for fb user with id",
-					userId);
-			}
-		} else {
-			console.error(response.error);
-		}
-
-	});
+  callSendAPI(messageData);
 }
+
+
 
 function receivedDeliveryConfirmation(event) {
   var senderID = event.sender.id;
@@ -229,6 +243,109 @@ function receivedAccountLink(event) {
   console.log("Received account link event with for user %d with status %s " +
     "and auth code %s ", senderID, status, authCode);
 }
+
+function sendImageMessage(recipientId) {
+  var messageData = {
+    recipient: {
+      id: recipientId
+    },
+    message: {
+      attachment: {
+        type: "image",
+        payload: {
+          url: "https://github.com/KrishnaChittodia21/Facebook-chatbot-myfeatures/blob/master/assets/gitg.png?raw=true"
+        }
+      }
+    }
+  };
+
+  callSendAPI(messageData);
+}
+
+function sendGifMessage(recipientId) {
+  var messageData = {
+    recipient: {
+      id: recipientId
+    },
+    message: {
+      attachment: {
+        type: "image",
+        payload: {
+          url: "https://github.com/KrishnaChittodia21/Facebook-chatbot-myfeatures/blob/master/assets/thats.gif?raw=true"
+        }
+      }
+    }
+  };
+
+  callSendAPI(messageData);
+}
+
+/*
+ * Send audio using the Send API.
+ *
+ */
+function sendAudioMessage(recipientId) {
+  var messageData = {
+    recipient: {
+      id: recipientId
+    },
+    message: {
+      attachment: {
+        type: "audio",
+        payload: {
+          url: "https://github.com/KrishnaChittodia21/Facebook-chatbot-myfeatures/blob/master/assets/sample.mp3?raw=true"
+        }
+      }
+    }
+  };
+
+  callSendAPI(messageData);
+}
+
+/*
+ * Send a video using the Send API.
+ *
+ */
+function sendVideoMessage(recipientId) {
+  var messageData = {
+    recipient: {
+      id: recipientId
+    },
+    message: {
+      attachment: {
+        type: "video",
+        payload: {
+          url: "https://github.com/KrishnaChittodia21/Facebook-chatbot-myfeatures/blob/master/assets/allofus480.mov?raw=true"
+        }
+      }
+    }
+  };
+
+  callSendAPI(messageData);
+}
+
+/*
+ * Send a file using the Send API.
+ *
+ */
+function sendFileMessage(recipientId) {
+  var messageData = {
+    recipient: {
+      id: recipientId
+    },
+    message: {
+      attachment: {
+        type: "file",
+        payload: {
+          url: "https://github.com/KrishnaChittodia21/Facebook-chatbot-myfeatures/blob/master/assets/test.txt?raw=true"
+        }
+      }
+    }
+  };
+
+  callSendAPI(messageData);
+}
+
 
 function sendGenericMessage(recipientId, messageText) {
   var messageData = {
@@ -312,6 +429,8 @@ function sendButtonMessage(recipientId) {
 
 
 
+
+
  function sendQuickReply(recipientId) {
   var messageData = {
     recipient: {
@@ -383,19 +502,22 @@ function sendTypingOff(recipientId) {
 
 
 
-function sendTextMessage(recipientId, messageText) {
+
+
+function sendReadReceipt(recipientId) {
+  console.log("Sending a read receipt to mark message as seen");
+
   var messageData = {
     recipient: {
       id: recipientId
     },
-    message: {
-      text: messageText,
-      metadata:"DEVELOPER_DEFINED_METADATA"
-    }
+    sender_action: "mark_seen"
   };
 
   callSendAPI(messageData);
 }
+
+
 function callSendAPI(messageData) {
   request({
     uri: 'https://graph.facebook.com/v2.6/me/messages',
